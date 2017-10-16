@@ -40,28 +40,31 @@ foreach my $file (@files) {
     my @violations = $critic->critique($file);
     next if (!@violations && SKIP_GOOD);
 
-    push @summary, { 'filename' => $file,
-                     'link'     => "src/$file_safe.html",
-                     'stats'    => $critic->statistics() };
+    # Check if any file paths contain CPAN; if so, ignore them
+    if (index($file_safe, "cpan") == -1) {
+      push @summary, { 'filename' => $file,
+                       'link'     => "src/$file_safe.html",
+                       'stats'    => $critic->statistics() };
 
-    open my $FH, '<', $file;
-    my @lines = <$FH>;
-    close $FH;
+      open my $FH, '<', $file;
+      my @lines = <$FH>;
+      close $FH;
 
-    # Attach all violations to the line they were found on.
-    my @violations_by_line = ();
-    my $line_number = 1;
-    foreach my $line (@lines) {
-        # Get all the violations for the current line.
-        my @line_violations = grep { $_->line_number() == $line_number} @violations;
-        push @violations_by_line, { 'number'  => $line_number,
-                                    'content' => $line,
-                                    'violations' => \@line_violations };
-        $line_number++;
+      # Attach all violations to the line they were found on.
+      my @violations_by_line = ();
+      my $line_number = 1;
+      foreach my $line (@lines) {
+          # Get all the violations for the current line.
+          my @line_violations = grep { $_->line_number() == $line_number} @violations;
+          push @violations_by_line, { 'number'  => $line_number,
+                                      'content' => $line,
+                                      'violations' => \@line_violations };
+          $line_number++;
+      }
+
+      write_html("$critic_src_dir/$file_safe.html", 'codefile', { 'title' => "Critic Analysis of $file",
+                                                                  'lines' => \@violations_by_line } );
     }
-
-    write_html("$critic_src_dir/$file_safe.html", 'codefile', { 'title' => "Critic Analysis of $file",
-                                                                'lines' => \@violations_by_line } );
 }
 
 write_html("$critic_dir/index.html", 'index', { 'title' => 'Perl::Critic::HTML Summary',
